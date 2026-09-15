@@ -4,16 +4,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 from telegram import Update,InlineKeyboardButton as B,InlineKeyboardMarkup as K
 from telegram.ext import Application,CommandHandler,MessageHandler,CallbackQueryHandler,ContextTypes,filters
-from core import kind, TARGETS, convert, safe_name
+from converters.core import kind,TARGETS,convert,safe_name
 load_dotenv(); TOKEN=os.getenv('BOT_TOKEN'); MAX_MB=int(os.getenv('MAX_FILE_MB','50')); logging.basicConfig(level=logging.INFO)
 
 def kb(rows): return K([[B(t,callback_data=d) for t,d in r] for r in rows])
 def main_menu(k):
  ts=TARGETS[k]; rows=[]
  for i in range(0,len(ts),3): rows.append([(x.upper(),'cv:'+x) for x in ts[i:i+3]])
- rows += [[('⚙️ Настройки','settings'),('🗜 Сжать','compress')],[('📚 Пакетный режим','batch'),('🗑 Очистить','clear')]]
+ rows += [[('⚙️ Настройки','settings'),('🗜 Сжать','compress')],[('📚 Пакетный режим','batch'),('🗑 Очистить','clear')],[('🏠 Главное меню','home')]]
  return kb(rows)
-async def start(u,c): await u.message.reply_text('⚡ OmniConvert MAX\n\nКидай файл — определю формат сам. Есть видео, аудио, фото/HEIC, PDF, Office, архивы, сжатие и пакетный режим.\n\n/mergepdf — объединение PDF/картинок\n/cancel — очистить очередь')
+async def start(u,c):
+ await u.message.reply_text('⚡ OmniConvert MAX\n\nУниверсальный конвертер файлов.\nПросто отправь файл или выбери инструмент ↓',reply_markup=kb([[('🔄 Конвертировать файл','ui:convert')],[('🗜 Сжать','ui:compress'),('📚 Объединить','ui:merge')],[('🖼 Изображения','info:image'),('🎬 Видео','info:video')],[('🎵 Аудио','info:audio'),('📄 PDF','info:pdf')],[('📦 Архивы','info:archive'),('⚙️ Настройки','settings')],[('ℹ️ Возможности','help')]]))
 async def cancel(u,c):
  c.user_data.clear(); await u.message.reply_text('🧹 Очередь очищена.')
 async def mergepdf(u,c): c.user_data['merge']=True;c.user_data['batch_files']=[];await u.message.reply_text('📚 Режим объединения: пришли несколько PDF/картинок по одному, затем нажми /done.')
@@ -59,6 +60,13 @@ async def batchdone(u,c):
  await u.message.reply_text('Во что конвертировать всю очередь?',reply_markup=kb([[ (x.upper(),'bcv:'+x) for x in sorted(common) ]]))
 async def callback(u,c):
  q=u.callback_query; await q.answer(); d=q.data
+ if d=='home': return await q.edit_message_text('⚡ OmniConvert MAX\n\nОтправь файл или выбери инструмент:',reply_markup=kb([[('🔄 Конвертировать файл','ui:convert')],[('🗜 Сжать','ui:compress'),('📚 Объединить','ui:merge')],[('🖼 Изображения','info:image'),('🎬 Видео','info:video')],[('🎵 Аудио','info:audio'),('📄 PDF','info:pdf')],[('📦 Архивы','info:archive'),('⚙️ Настройки','settings')],[('ℹ️ Возможности','help')]]))
+ if d=='ui:convert': return await q.edit_message_text('🔄 Конвертация\n\nПросто отправь мне файл — формат определю автоматически.',reply_markup=kb([[('🏠 Главное меню','home')]]))
+ if d=='ui:compress': return await q.edit_message_text('🗜 Сжатие\n\nОтправь файл, затем нажми «Сжать».',reply_markup=kb([[('🏠 Главное меню','home')]]))
+ if d=='ui:merge': c.user_data['merge']=True;c.user_data['batch_files']=[];return await q.edit_message_text('📚 Объединение\n\nПришли PDF/картинки по одному, затем /done.',reply_markup=kb([[('🏠 Главное меню','home')]]))
+ if d.startswith('info:'):
+  k=d.split(':')[1]; return await q.edit_message_text('Поддерживаемые варианты: '+', '.join(x.upper() for x in TARGETS.get(k,[])),reply_markup=kb([[('🏠 Главное меню','home')]]))
+ if d=='help': return await q.edit_message_text('ℹ️ OmniConvert MAX\n\nФото • видео • аудио • PDF • документы • архивы\nПакетная обработка: /batch\nОбъединение: /mergepdf\nОчистка: /cancel',reply_markup=kb([[('🏠 Главное меню','home')]]))
  if d=='clear': c.user_data.clear();return await q.edit_message_text('🧹 Удалено.')
  if d=='batch': c.user_data['batch_collect']=True;c.user_data['batch_files']=[];return await q.edit_message_text('📚 Присылай файлы, затем /batchdone')
  if d=='settings':
@@ -91,47 +99,7 @@ async def callback(u,c):
    if dst.stat().st_size>MAX_MB*1048576:return await q.message.reply_text(f'⚠️ Результат {dst.stat().st_size/1048576:.1f} МБ — больше лимита {MAX_MB} МБ.')
    with dst.open('rb') as f: await q.message.reply_document(f,filename=dst.name,caption='✅ Готово')
   except Exception as e: logging.exception('convert');await q.message.reply_text('❌ '+str(e)[:500])
-
 def main():
-    if not TOKEN:
-        raise RuntimeError('Укажи BOT_TOKEN в Render Environment Variables')
-
-    port = int(os.getenv('PORT', '10000'))
-    render_url = os.getenv('RENDER_EXTERNAL_URL')
-
-    if not render_url:
-        raise RuntimeError('RENDER_EXTERNAL_URL не найден')
-
-    webhook_url = f"{render_url}/{TOKEN}"
-
-    a = Application.builder().token(TOKEN).build()
-
-    a.add_handler(CommandHandler('start', start))
-    a.add_handler(CommandHandler('cancel', cancel))
-    a.add_handler(CommandHandler('mergepdf', mergepdf))
-    a.add_handler(CommandHandler('done', done))
-    a.add_handler(CommandHandler('batch', batch))
-    a.add_handler(CommandHandler('batchdone', batchdone))
-    a.add_handler(CallbackQueryHandler(callback))
-    a.add_handler(
-        MessageHandler(
-            filters.Document.ALL
-            | filters.VIDEO
-            | filters.AUDIO
-            | filters.VOICE
-            | filters.PHOTO,
-            receive
-        )
-    )
-
-    a.run_webhook(
-        listen='0.0.0.0',
-        port=port,
-        url_path=TOKEN,
-        webhook_url=webhook_url,
-        drop_pending_updates=True
-    )
-
-
-if __name__ == '__main__':
-    main()
+ if not TOKEN:raise RuntimeError('Укажи BOT_TOKEN в .env')
+ a=Application.builder().token(TOKEN).build();a.add_handler(CommandHandler('start',start));a.add_handler(CommandHandler('cancel',cancel));a.add_handler(CommandHandler('mergepdf',mergepdf));a.add_handler(CommandHandler('done',done));a.add_handler(CommandHandler('batch',batch));a.add_handler(CommandHandler('batchdone',batchdone));a.add_handler(CallbackQueryHandler(callback));a.add_handler(MessageHandler(filters.Document.ALL|filters.VIDEO|filters.AUDIO|filters.VOICE|filters.PHOTO,receive));port=int(os.getenv('PORT','10000')); render_url=os.getenv('RENDER_EXTERNAL_URL'); webhook_path=os.getenv('WEBHOOK_PATH','telegram-webhook'); a.run_webhook(listen='0.0.0.0',port=port,url_path=webhook_path,webhook_url=f'{render_url}/{webhook_path}',drop_pending_updates=True)
+if __name__=='__main__':main()
