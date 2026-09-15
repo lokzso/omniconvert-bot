@@ -1,24 +1,25 @@
-# КИП Помощник
+# OmniConvert MAX
+Telegram universal file converter.
 
-Telegram-бот для быстрых расчётов и шпаргалок по КИПиА.
+## Features
+- Images incl. HEIC/HEIF: JPG/PNG/WEBP/BMP/TIFF/PDF
+- Video: MP4/MKV/WEBM/MOV/GIF + audio extraction
+- Audio: MP3/WAV/FLAC/M4A/OGG/OPUS
+- Office/docs via headless LibreOffice
+- PDF -> JPG/PNG/TXT
+- ZIP/7Z/TAR/TAR.GZ repacking
+- Quality, resolution and bitrate controls
+- Compression presets
+- Batch conversion -> ZIP
+- Merge PDF and images -> one PDF
+- Automatic file type detection
 
-## Что умеет
-- 4–20 мА → %
-- % → 4–20 мА
-- 4–20 мА → значение прибора
-- Закон Ома
-- Мощность
-- Цветовая маркировка резисторов
-- Краткая шпаргалка по мультиметру
-- Базовая шпаргалка КИПиА
+## Run with Docker
+1. Copy `.env.example` to `.env` and put your BotFather token in `BOT_TOKEN`.
+2. `docker build -t omniconvert .`
+3. `docker run --env-file .env --rm omniconvert`
 
-## Переменные окружения
-- `BOT_TOKEN` — токен Telegram-бота от @BotFather
-- `WEBHOOK_SECRET` — секрет webhook
-- `RENDER_EXTERNAL_URL` — Render добавляет автоматически
+## Run without Docker (Linux)
+Install ffmpeg, LibreOffice, poppler-utils, p7zip-full, then `pip install -r requirements.txt` and `python bot.py`.
 
-## Запуск на Render
-1. Создай Web Service из этого репозитория.
-2. Render прочитает `render.yaml`.
-3. Добавь `BOT_TOKEN` в Environment.
-4. После деплоя открой бота в Telegram и отправь `/start`.
+Telegram/cloud upload limits still apply. Conversion only exists where the source and target formats have a meaningful mapping.
