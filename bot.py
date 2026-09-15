@@ -4,7 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from telegram import Update,InlineKeyboardButton as B,InlineKeyboardMarkup as K
 from telegram.ext import Application,CommandHandler,MessageHandler,CallbackQueryHandler,ContextTypes,filters
-from converters.core import kind,TARGETS,convert,safe_name
+from core import kind, TARGETS, convert, safe_name
 load_dotenv(); TOKEN=os.getenv('BOT_TOKEN'); MAX_MB=int(os.getenv('MAX_FILE_MB','50')); logging.basicConfig(level=logging.INFO)
 
 def kb(rows): return K([[B(t,callback_data=d) for t,d in r] for r in rows])
