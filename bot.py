@@ -91,7 +91,47 @@ async def callback(u,c):
    if dst.stat().st_size>MAX_MB*1048576:return await q.message.reply_text(f'⚠️ Результат {dst.stat().st_size/1048576:.1f} МБ — больше лимита {MAX_MB} МБ.')
    with dst.open('rb') as f: await q.message.reply_document(f,filename=dst.name,caption='✅ Готово')
   except Exception as e: logging.exception('convert');await q.message.reply_text('❌ '+str(e)[:500])
+
 def main():
- if not TOKEN:raise RuntimeError('Укажи BOT_TOKEN в .env')
- a=Application.builder().token(TOKEN).build();a.add_handler(CommandHandler('start',start));a.add_handler(CommandHandler('cancel',cancel));a.add_handler(CommandHandler('mergepdf',mergepdf));a.add_handler(CommandHandler('done',done));a.add_handler(CommandHandler('batch',batch));a.add_handler(CommandHandler('batchdone',batchdone));a.add_handler(CallbackQueryHandler(callback));a.add_handler(MessageHandler(filters.Document.ALL|filters.VIDEO|filters.AUDIO|filters.VOICE|filters.PHOTO,receive));a.run_polling(drop_pending_updates=True)
-if __name__=='__main__':main()
+    if not TOKEN:
+        raise RuntimeError('Укажи BOT_TOKEN в Render Environment Variables')
+
+    port = int(os.getenv('PORT', '10000'))
+    render_url = os.getenv('RENDER_EXTERNAL_URL')
+
+    if not render_url:
+        raise RuntimeError('RENDER_EXTERNAL_URL не найден')
+
+    webhook_url = f"{render_url}/{TOKEN}"
+
+    a = Application.builder().token(TOKEN).build()
+
+    a.add_handler(CommandHandler('start', start))
+    a.add_handler(CommandHandler('cancel', cancel))
+    a.add_handler(CommandHandler('mergepdf', mergepdf))
+    a.add_handler(CommandHandler('done', done))
+    a.add_handler(CommandHandler('batch', batch))
+    a.add_handler(CommandHandler('batchdone', batchdone))
+    a.add_handler(CallbackQueryHandler(callback))
+    a.add_handler(
+        MessageHandler(
+            filters.Document.ALL
+            | filters.VIDEO
+            | filters.AUDIO
+            | filters.VOICE
+            | filters.PHOTO,
+            receive
+        )
+    )
+
+    a.run_webhook(
+        listen='0.0.0.0',
+        port=port,
+        url_path=TOKEN,
+        webhook_url=webhook_url,
+        drop_pending_updates=True
+    )
+
+
+if __name__ == '__main__':
+    main()
